@@ -1,18 +1,18 @@
 "use strict";
 
-import "core-js/modules/es.array.flat";
+require("core-js/modules/es.array.flat");
 
-import "core-js/modules/es.array.unscopables.flat";
+require("core-js/modules/es.array.unscopables.flat");
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-import { debug as _debug, absolute, assert, fetchConformanceStatement, getPatientParam, getPath as _getPath, makeArray, setPath, units, jwtDecode, assertJsonPatch, request as _request, getAccessTokenExpiration, byCode as _byCode, byCodes as _byCodes } from "./lib";
+const lib_1 = require("./lib");
 
-import strings_1 from "./strings";
+const strings_1 = require("./strings");
 
-import { patientCompartment, SMART_KEY, fhirVersions } from "./settings"; // $lab:coverage:off$
+const settings_1 = require("./settings"); // $lab:coverage:off$
 // @ts-ignore
 
 
@@ -20,7 +20,7 @@ const {
   Response
 } = typeof FHIRCLIENT_PURE !== "undefined" ? window : require("cross-fetch"); // $lab:coverage:on$
 
-const debug = _debug.extend("client");
+const debug = lib_1.debug.extend("client");
 /**
  * Adds patient context to requestOptions object to be used with [[Client.request]]
  * @param requestOptions Can be a string URL (relative to the serviceUrl), or an
@@ -30,15 +30,15 @@ const debug = _debug.extend("client");
  */
 
 async function contextualize(requestOptions, client) {
-  const base = absolute("/", client.state.serverUrl);
+  const base = lib_1.absolute("/", client.state.serverUrl);
 
   async function contextualURL(_url) {
     const resourceType = _url.pathname.split("/").pop();
 
-    assert(resourceType, `Invalid url "${_url}"`);
-    assert(patientCompartment.indexOf(resourceType) > -1, `Cannot filter "${resourceType}" resources by patient`);
-    const conformance = await fetchConformanceStatement(client.state.serverUrl);
-    const searchParam = getPatientParam(conformance, resourceType);
+    lib_1.assert(resourceType, `Invalid url "${_url}"`);
+    lib_1.assert(settings_1.patientCompartment.indexOf(resourceType) > -1, `Cannot filter "${resourceType}" resources by patient`);
+    const conformance = await lib_1.fetchConformanceStatement(client.state.serverUrl);
+    const searchParam = lib_1.getPatientParam(conformance, resourceType);
 
     _url.searchParams.set(searchParam, client.patient.id);
 
@@ -91,11 +91,11 @@ function getRef(refId, cache, client, signal) {
 
 
 function resolveRef(obj, path, graph, cache, client, signal) {
-  const node = _getPath(obj, path);
+  const node = lib_1.getPath(obj, path);
 
   if (node) {
     const isArray = Array.isArray(node);
-    return Promise.all(makeArray(node).filter(Boolean).map((item, i) => {
+    return Promise.all(lib_1.makeArray(node).filter(Boolean).map((item, i) => {
       const ref = item.reference;
 
       if (ref) {
@@ -103,12 +103,12 @@ function resolveRef(obj, path, graph, cache, client, signal) {
           if (graph) {
             if (isArray) {
               if (path.indexOf("..") > -1) {
-                setPath(obj, `${path.replace("..", `.${i}.`)}`, sub);
+                lib_1.setPath(obj, `${path.replace("..", `.${i}.`)}`, sub);
               } else {
-                setPath(obj, `${path}.${i}`, sub);
+                lib_1.setPath(obj, `${path}.${i}`, sub);
               }
             } else {
-              setPath(obj, path, sub);
+              lib_1.setPath(obj, path, sub);
             }
           }
         }).catch(ex => {
@@ -133,7 +133,7 @@ function resolveRef(obj, path, graph, cache, client, signal) {
 
 function resolveRefs(obj, fhirOptions, cache, client, signal) {
   // 1. Sanitize paths, remove any invalid ones
-  let paths = makeArray(fhirOptions.resolveReferences).filter(Boolean) // No false, 0, null, undefined or ""
+  let paths = lib_1.makeArray(fhirOptions.resolveReferences).filter(Boolean) // No false, 0, null, undefined or ""
   .map(path => String(path).trim()).filter(Boolean); // No space-only strings
   // 2. Remove duplicates
 
@@ -198,14 +198,14 @@ class Client {
     /**
      * @category Utility
      */
-    this.units = units;
+    this.units = lib_1.units;
 
     const _state = typeof state == "string" ? {
       serverUrl: state
     } : state; // Valid serverUrl is required!
 
 
-    assert(_state.serverUrl && _state.serverUrl.match(/https?:\/\/.+/), "A \"serverUrl\" option is required and must begin with \"http(s)\"");
+    lib_1.assert(_state.serverUrl && _state.serverUrl.match(/https?:\/\/.+/), "A \"serverUrl\" option is required and must begin with \"http(s)\"");
     this.state = _state;
     this.environment = environment;
     this._refreshTask = null;
@@ -332,7 +332,7 @@ class Client {
       // the patient. This should be a scope issue.
       if (!tokenResponse.patient) {
         if (!(this.state.scope || "").match(/\blaunch(\/patient)?\b/)) {
-          debug(strings_1.noScopeForId, "patient", "patient");
+          debug(strings_1.default.noScopeForId, "patient", "patient");
         } else {
           // The server should have returned the patient!
           debug("The ID of the selected patient is not available. Please check if your server supports that.");
@@ -345,9 +345,9 @@ class Client {
     }
 
     if (this.state.authorizeUri) {
-      debug(strings_1.noIfNoAuth, "the ID of the selected patient");
+      debug(strings_1.default.noIfNoAuth, "the ID of the selected patient");
     } else {
-      debug(strings_1.noFreeContext, "selected patient");
+      debug(strings_1.default.noFreeContext, "selected patient");
     }
 
     return null;
@@ -368,7 +368,7 @@ class Client {
       // the encounter. This should be a scope issue.
       if (!tokenResponse.encounter) {
         if (!(this.state.scope || "").match(/\blaunch(\/encounter)?\b/)) {
-          debug(strings_1.noScopeForId, "encounter", "encounter");
+          debug(strings_1.default.noScopeForId, "encounter", "encounter");
         } else {
           // The server should have returned the encounter!
           debug("The ID of the selected encounter is not available. Please check if your server supports that, and that the selected patient has any recorded encounters.");
@@ -381,9 +381,9 @@ class Client {
     }
 
     if (this.state.authorizeUri) {
-      debug(strings_1.noIfNoAuth, "the ID of the selected encounter");
+      debug(strings_1.default.noIfNoAuth, "the ID of the selected encounter");
     } else {
-      debug(strings_1.noFreeContext, "selected encounter");
+      debug(strings_1.default.noFreeContext, "selected encounter");
     }
 
     return null;
@@ -418,13 +418,13 @@ class Client {
         return null;
       }
 
-      return jwtDecode(idToken, this.environment);
+      return lib_1.jwtDecode(idToken, this.environment);
     }
 
     if (this.state.authorizeUri) {
-      debug(strings_1.noIfNoAuth, "the id_token");
+      debug(strings_1.default.noIfNoAuth, "the id_token");
     } else {
-      debug(strings_1.noFreeContext, "id_token");
+      debug(strings_1.default.noFreeContext, "id_token");
     }
 
     return null;
@@ -512,13 +512,13 @@ class Client {
 
   async _clearState() {
     const storage = this.environment.getStorage();
-    const key = await storage.get(SMART_KEY);
+    const key = await storage.get(settings_1.SMART_KEY);
 
     if (key) {
       await storage.unset(key);
     }
 
-    await storage.unset(SMART_KEY);
+    await storage.unset(settings_1.SMART_KEY);
     this.state.tokenResponse = {};
   }
   /**
@@ -602,7 +602,7 @@ class Client {
 
 
   async patch(url, patch, requestOptions = {}) {
-    assertJsonPatch(patch);
+    lib_1.assertJsonPatch(patch);
     return this.request(Object.assign(Object.assign({}, requestOptions), {
       url,
       method: "PATCH",
@@ -625,8 +625,8 @@ class Client {
   async request(requestOptions, fhirOptions = {}, _resolvedRefs = {}) {
     var _a;
 
-    const debugRequest = _debug.extend("client:request");
-    assert(requestOptions, "request requires an url or request options as argument"); // url -----------------------------------------------------------------
+    const debugRequest = lib_1.debug.extend("client:request");
+    lib_1.assert(requestOptions, "request requires an url or request options as argument"); // url -----------------------------------------------------------------
 
     let url;
 
@@ -637,7 +637,7 @@ class Client {
       url = String(requestOptions.url);
     }
 
-    url = absolute(url, this.state.serverUrl);
+    url = lib_1.absolute(url, this.state.serverUrl);
     const options = {
       graph: fhirOptions.graph !== false,
       flat: !!fhirOptions.flat,
@@ -667,7 +667,7 @@ class Client {
     }) // Make the request
     .then(requestOptions => {
       debugRequest("%s, options: %O, fhirOptions: %O", url, requestOptions, options);
-      return _request(url, requestOptions).then(result => {
+      return lib_1.request(url, requestOptions).then(result => {
         if (requestOptions.includeResponse) {
           response = result.response;
           return result.body;
@@ -689,7 +689,7 @@ class Client {
         if (!options.useRefreshToken) {
           debugRequest("Your session has expired and the useRefreshToken option is set to false. Please re-launch the app.");
           await this._clearState();
-          error.message += "\n" + strings_1.expired;
+          error.message += "\n" + strings_1.default.expired;
           throw error;
         } // In rare cases we may have a valid access token and a refresh
         // token and the request might still fail with 401 just because
@@ -700,7 +700,7 @@ class Client {
 
         debugRequest("Auto-refresh failed! Please re-launch the app.");
         await this._clearState();
-        error.message += "\n" + strings_1.expired;
+        error.message += "\n" + strings_1.default.expired;
         throw error;
       }
 
@@ -742,7 +742,7 @@ class Client {
 
           if (--options.pageLimit) {
             const next = links.find(l => l.relation == "next");
-            _data = makeArray(_data);
+            _data = lib_1.makeArray(_data);
 
             if (next && next.url) {
               const nextPage = await this.request({
@@ -760,10 +760,10 @@ class Client {
 
               if (options.resolveReferences.length) {
                 Object.assign(_resolvedRefs, nextPage.references);
-                return _data.concat(makeArray(nextPage.data || nextPage));
+                return _data.concat(lib_1.makeArray(nextPage.data || nextPage));
               }
 
-              return _data.concat(makeArray(nextPage));
+              return _data.concat(lib_1.makeArray(nextPage));
             }
           }
         }
@@ -833,16 +833,16 @@ class Client {
   refresh(requestOptions = {}) {
     var _a, _b;
 
-    const debugRefresh = _debug.extend("client:refresh");
+    const debugRefresh = lib_1.debug.extend("client:refresh");
     debugRefresh("Attempting to refresh with refresh_token...");
     const refreshToken = (_b = (_a = this.state) === null || _a === void 0 ? void 0 : _a.tokenResponse) === null || _b === void 0 ? void 0 : _b.refresh_token;
-    assert(refreshToken, "Unable to refresh. No refresh_token found.");
+    lib_1.assert(refreshToken, "Unable to refresh. No refresh_token found.");
     const tokenUri = this.state.tokenUri;
-    assert(tokenUri, "Unable to refresh. No tokenUri found.");
+    lib_1.assert(tokenUri, "Unable to refresh. No tokenUri found.");
     const scopes = this.getState("tokenResponse.scope") || "";
     const hasOfflineAccess = scopes.search(/\boffline_access\b/) > -1;
     const hasOnlineAccess = scopes.search(/\bonline_access\b/) > -1;
-    assert(hasOfflineAccess || hasOnlineAccess, "Unable to refresh. No offline_access or online_access scope found."); // This method is typically called internally from `request` if certain
+    lib_1.assert(hasOfflineAccess || hasOnlineAccess, "Unable to refresh. No offline_access or online_access scope found."); // This method is typically called internally from `request` if certain
     // request fails with 401. However, clients will often run multiple
     // requests in parallel which may result in multiple refresh calls.
     // To avoid that, we keep a reference to the current refresh task (if any).
@@ -871,11 +871,11 @@ class Client {
         }
       }
 
-      this._refreshTask = _request(tokenUri, refreshRequestOptions).then(data => {
-        assert(data.access_token, "No access token received");
+      this._refreshTask = lib_1.request(tokenUri, refreshRequestOptions).then(data => {
+        lib_1.assert(data.access_token, "No access token received");
         debugRefresh("Received new access token response %O", data);
         Object.assign(this.state.tokenResponse, data);
-        this.state.expiresAt = getAccessTokenExpiration(data, this.environment);
+        this.state.expiresAt = lib_1.getAccessTokenExpiration(data, this.environment);
         return this.state;
       }).catch(error => {
         var _a, _b;
@@ -920,7 +920,7 @@ class Client {
 
 
   byCode(observations, property) {
-    return _byCode(observations, property);
+    return lib_1.byCode(observations, property);
   }
   /**
    * First groups the observations by code using `byCode`. Then returns a function
@@ -942,7 +942,7 @@ class Client {
 
 
   byCodes(observations, property) {
-    return _byCodes(observations, property);
+    return lib_1.byCodes(observations, property);
   }
   /**
    * Walks through an object (or array) and returns the value found at the
@@ -960,7 +960,7 @@ class Client {
 
 
   getPath(obj, path = "") {
-    return _getPath(obj, path);
+    return lib_1.getPath(obj, path);
   }
   /**
    * Returns a copy of the client state. Accepts a dot-separated path argument
@@ -977,7 +977,7 @@ class Client {
 
 
   getState(path = "") {
-    return _getPath(Object.assign({}, this.state), path);
+    return lib_1.getPath(Object.assign({}, this.state), path);
   }
   /**
    * Returns a promise that will be resolved with the fhir version as defined
@@ -986,7 +986,7 @@ class Client {
 
 
   getFhirVersion() {
-    return fetchConformanceStatement(this.state.serverUrl).then(metadata => metadata.fhirVersion);
+    return lib_1.fetchConformanceStatement(this.state.serverUrl).then(metadata => metadata.fhirVersion);
   }
   /**
    * Returns a promise that will be resolved with the numeric fhir version
@@ -1001,11 +1001,10 @@ class Client {
     return this.getFhirVersion().then(v => {
       var _a;
 
-      return (_a = fhirVersions[v]) !== null && _a !== void 0 ? _a : 0;
+      return (_a = settings_1.fhirVersions[v]) !== null && _a !== void 0 ? _a : 0;
     });
   }
 
 }
 
-const _default = Client;
-export { _default as default };
+exports.default = Client;
